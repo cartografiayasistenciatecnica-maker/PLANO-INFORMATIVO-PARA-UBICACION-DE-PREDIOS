@@ -1,0 +1,123 @@
+import streamlit as st
+# --- CONFIGURACIÓN DE MARCA Y ESTILO ---
+def aplicar_estilo_personalizado():
+    st.markdown(
+        """
+        <style>
+        /* Color de fondo de la barra lateral */
+        [data-testid="stSidebar"] {
+            background-color: #003366; /* CAMBIA ESTE HEXADECIMAL POR TU COLOR */
+        }
+        /* Color de los títulos en la barra lateral */
+        [data-testid="stSidebar"] .stMarkdown h1, h2, h3 {
+            color: #ffffff;
+        }
+        /* Estilo para el botón de descarga */
+        .stDownloadButton button {
+            background-color: #ffc107; /* Color resaltado para descargas */
+            color: black;
+            border-radius: 10px;
+        }
+        </style>
+        """,
+        unsafe_allow_index=True
+    )
+
+# --- INSERTAR LOGOTIPO Y TÍTULO ---
+def insertar_logo_y_titulo():
+    col_logo, col_titulo = st.columns([1, 4])
+    with col_logo:
+        # Reemplaza 'logo.png' por la ruta de tu imagen cuando la tengas
+        # st.image("logo.png", width=120) 
+        st.info("LOGO AQUÍ") # Espacio reservado
+    with col_titulo:
+        st.title("SISTEMA DE GESTIÓN GEO-AGRARIA V1.0")
+        st.subheader("Consultoría y Soluciones Territoriales")
+
+# Llamar a las funciones al inicio
+aplicar_estilo_personalizado()
+insertar_logo_y_titulo()
+
+import pandas as pd
+import geopandas as gpd
+import folium
+from streamlit_folium import st_folium
+from pyproj import Transformer
+import math
+import simplekml
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+import io
+
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="GEO-AGRARIO PRO", layout="wide")
+
+# --- FUNCIONES LÓGICAS ---
+def calcular_rumbo(x1, y1, x2, y2):
+    dx, dy = x2 - x1, y2 - y1
+    distancia = math.sqrt(dx**2 + dy**2)
+    azimut = math.degrees(math.atan2(dx, dy)) % 360
+    if 0 <= azimut < 90: r = f"N {formatear_gms(azimut)} E"
+    elif 90 <= azimut < 180: r = f"S {formatear_gms(180-azimut)} E"
+    elif 180 <= azimut < 270: r = f"S {formatear_gms(azimut-180)} W"
+    else: r = f"N {formatear_gms(360-azimut)} W"
+    return r, distancia
+
+def formatear_gms(deg):
+    d = int(deg)
+    m = int((deg - d) * 60)
+    s = round((((deg - d) * 60) - m) * 60, 2)
+    return f"{d}°{m}'{s}\""
+
+def generar_cuadro(df, zona):
+    filas = []
+    for i in range(len(df)):
+        p1, p2 = df.iloc[i], df.iloc[(i + 1) % len(df)]
+        rumbo, dist = calcular_rumbo(p1['Este_X'], p1['Norte_Y'], p2['Este_X'], p2['Norte_Y'])
+        filas.append({'Est': i+1, 'PV': (i+2) if (i+1) < len(df) else 1, 'Rumbo': rumbo, 'Distancia': f"{dist:.3f} m", 'Vértice': i+1, 'X': p1['Este_X'], 'Y': p1['Norte_Y']})
+    return pd.DataFrame(filas)
+
+# --- INTERFAZ STREAMLIT ---
+st.title("🗺️ Ubicador de Predios y Análisis Agrario (RAN)")
+st.sidebar.header("Configuración Técnica")
+zona = st.sidebar.number_input("Zona UTM (México: 11-16)", value=14)
+archivo = st.sidebar.file_uploader("Cargar Excel/CSV (Vértice, Este_X, Norte_Y)", type=['xlsx', 'csv'])
+
+if archivo:
+    df_origen = pd.read_excel(archivo) if archivo.name.endswith('xlsx') else pd.read_csv(archivo)
+    cuadro_df = generar_cuadro(df_origen, zona)
+    
+    # Conversión a Geográficas para Mapa y KML
+    tf = Transformer.from_crs(f"EPSG:326{zona}", "EPSG:4326")
+    coords_mapa = [tf.transform(row['Este_X'], row['Norte_Y']) for _, row in df_origen.iterrows()]
+    coords_kml = [(c[1], c[0]) for c in coords_mapa] # Long, Lat para KML
+
+    col1, col2 = st.columns([1.5, 1])
+    
+    with col1:
+        st.subheader("📍 Ubicación en Google Maps & Capa RAN")
+        centro = [sum(c[0] for c in coords_mapa)/len(coords_mapa), sum(c[1] for c in coords_mapa)/len(coords_mapa)]
+        m = folium.Map(location=centro, zoom_start=15)
+        
+        # Capas
+        folium.TileLayer('https://google.com{x}&y={y}&z={z}', attr='Google', name='Google Satellite').add_to(m)
+        folium.WmsTileLayer(url="http://ran.gob.mx", layers="nucleos_agrarios", fmt="image/png", transparent=True, name="Ejidos (RAN)").add_to(m)
+        folium.Polygon(locations=coords_mapa, color="yellow", weight=3, fill=True, popup="Predio Analizado").add_to(m)
+        folium.LayerControl().add_to(m)
+        st_folium(m, width=800, height=500)
+
+    with col2:
+        st.subheader("📋 Cuadro de Construcción")
+        st.dataframe(cuadro_df[['Est', 'PV', 'Rumbo', 'Distancia']], height=300)
+        
+        # Botones de Descarga
+        kml = simplekml.Kml()
+        pol = kml.newpolygon(name="Predio", outerboundaryis=coords_kml)
+        pol.style.linestyle.color, pol.style.linestyle.width = simplekml.Color.red, 3
+        
+        st.download_button("📥 Descargar KMZ (Google Earth)", data=kml.kml(), file_name="predio.kmz")
+        st.warning("⚠️ Nota: El estatus ejidal debe confirmarse visualmente con la capa azul/roja del mapa.")
+
+st.info("Desarrollado para cumplimiento de Normas Técnicas INEGI/RAN.")
