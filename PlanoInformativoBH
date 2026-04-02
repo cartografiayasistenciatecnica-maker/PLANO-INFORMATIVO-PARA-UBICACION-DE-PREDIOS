@@ -96,25 +96,62 @@ if archivo:
 
     col1, col2 = st.columns([1.5, 1])
     
-    with col1:
-        st.subheader("📍 Ubicación en Google Maps & Capa RAN")
-        centro = [sum(c[0] for c in coords_mapa)/len(coords_mapa), sum(c[1] for c in coords_mapa)/len(coords_mapa)]
-        m = folium.Map(location=centro, zoom_start=15)
+    # --- BLOQUE DE MAPA CORREGIDO ---
+with col1:
+    st.subheader("📍 Ubicación en Google Maps & Capa RAN")
+    
+    # 1. Definir un ID único para el mapa basado en el archivo cargado
+    # Esto evita el error "removeChild" al forzar un renderizado limpio
+    map_key = f"mapa_{archivo.name}" if archivo else "mapa_base"
+    
+    # 2. Configurar el mapa
+    centro = [23.6345, -102.5528] # Centro de México por defecto
+    if archivo and coords_mapa:
+        centro = [sum(c[0] for c in coords_mapa)/len(coords_mapa), 
+                  sum(c[1] for c in coords_mapa)/len(coords_mapa)]
+    
+    m = folium.Map(location=centro, zoom_start=15)
+    
+    # 3. Añadir capas
+    folium.TileLayer('https://google.com{x}&y={y}&z={z}', 
+                     attr='Google', name='Google Satélite').add_to(m)
+    
+    folium.WmsTileLayer(
+        url="http://ran.gob.mx", 
+        layers="nucleos_agrarios", 
+        fmt="image/png", 
+        transparent=True, 
+        name="Ejidos (RAN)"
+    ).add_to(m)
+
+    if archivo and coords_mapa:
+        folium.Polygon(locations=coords_mapa, color="yellow", weight=3, 
+                       fill=True, popup="Predio Analizado").add_to(m)
+    
+    folium.LayerControl().add_to(m)
+
+    # 4. Renderizado seguro
+    # 'returned_objects=[]' evita que Streamlit intente enviar datos de vuelta
+    # al navegador constantemente, lo que causa el error de sincronización.
+    st_folium(m, width=700, height=500, key=map_key, returned_objects=[])
+
         
         # Capas
         folium.TileLayer('https://google.com{x}&y={y}&z={z}', attr='Google', name='Google Satellite').add_to(m)
         folium.WmsTileLayer(url="http://ran.gob.mx", layers="nucleos_agrarios", fmt="image/png", transparent=True, name="Ejidos (RAN)").add_to(m)
         folium.Polygon(locations=coords_mapa, color="yellow", weight=3, fill=True, popup="Predio Analizado").add_to(m)
         folium.LayerControl().add_to(m)
-# Usa el nombre del archivo o el número de puntos como parte de la KEY
-if archivo:
-    st_folium(m, width=800, height=500, key=f"mapa_{archivo.name}")
-mostrar_mapa(m, archivo.name)
-else:
-    st_folium(m, width=800, height=500, key="mapa_vacio")
-@st.fragment
-def mostrar_mapa(mapa_objeto, nombre_archivo):
-    st_folium(mapa_objeto, width=800, height=500, key=f"map_{nombre_archivo}")
+# Crea un ID único basado en el nombre del archivo subido
+mapa_id = f"mapa_{archivo.name}" if archivo else "mapa_vacio"
+
+# Renderiza el mapa usando ese ID único
+st_folium(
+    m, 
+    width=800, 
+    height=500, 
+    key=mapa_id,  # <--- ESTA ES LA LÍNEA CRÍTICA
+    returned_objects=[] # Esto acelera el rendimiento y evita errores de comunicación
+)
 
     with col2:
         st.subheader("📋 Cuadro de Construcción")
@@ -129,3 +166,11 @@ def mostrar_mapa(mapa_objeto, nombre_archivo):
         st.warning("⚠️ Nota: El estatus ejidal debe confirmarse visualmente con la capa azul/roja del mapa.")
 
 st.info("Desarrollado para cumplimiento de Normas Técnicas INEGI/RAN.")
+
+try:
+    if archivo:
+        # Tu lógica de procesamiento de coordenadas aquí...
+        # ...
+        st_folium(m, width=800, height=500, key=f"map_{archivo.name}")
+except Exception as e:
+    st.error(f"Error al procesar el mapa: {e}")
