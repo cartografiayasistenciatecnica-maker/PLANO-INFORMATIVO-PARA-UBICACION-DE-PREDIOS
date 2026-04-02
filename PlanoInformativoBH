@@ -106,7 +106,6 @@ if archivo:
         folium.WmsTileLayer(url="http://ran.gob.mx", layers="nucleos_agrarios", fmt="image/png", transparent=True, name="Ejidos (RAN)").add_to(m)
         folium.Polygon(locations=coords_mapa, color="yellow", weight=3, fill=True, popup="Predio Analizado").add_to(m)
         folium.LayerControl().add_to(m)
-        # Usa el nombre del archivo o el número de puntos como parte de la KEY
 if archivo:
     st_folium(m, width=800, height=500, key=f"mapa_{archivo.name}")
 else:
