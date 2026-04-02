@@ -1,45 +1,5 @@
 import streamlit as st
-# --- CONFIGURACIÓN DE MARCA Y ESTILO ---
-def aplicar_estilo_personalizado():
-    st.markdown(
-        """
-        <style>
-        /* Color de fondo de la barra lateral */
-        [data-testid="stSidebar"] {
-            background-color: #003366; /* CAMBIA ESTE HEXADECIMAL POR TU COLOR */
-        }
-        /* Color de los títulos en la barra lateral */
-        [data-testid="stSidebar"] .stMarkdown h1, h2, h3 {
-            color: #ffffff;
-        }
-        /* Estilo para el botón de descarga */
-        .stDownloadButton button {
-            background-color: #ffc107; /* Color resaltado para descargas */
-            color: black;
-            border-radius: 10px;
-        }
-        </style>
-        """,
-        unsafe_allow_index=True
-    )
-
-# --- INSERTAR LOGOTIPO Y TÍTULO ---
-def insertar_logo_y_titulo():
-    col_logo, col_titulo = st.columns([1, 4])
-    with col_logo:
-        # Reemplaza 'logo.png' por la ruta de tu imagen cuando la tengas
-        # st.image("logo.png", width=120) 
-        st.info("LOGO AQUÍ") # Espacio reservado
-    with col_titulo:
-        st.title("SISTEMA DE GESTIÓN GEO-AGRARIA V1.0")
-        st.subheader("Consultoría y Soluciones Territoriales")
-
-# Llamar a las funciones al inicio
-aplicar_estilo_personalizado()
-insertar_logo_y_titulo()
-
 import pandas as pd
-import geopandas as gpd
 import folium
 from streamlit_folium import st_folium
 from pyproj import Transformer
@@ -51,10 +11,27 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 import io
 
-# --- CONFIGURACIÓN DE PÁGINA ---
+# --- 1. CONFIGURACIÓN DE MARCA Y ESTILO ---
 st.set_page_config(page_title="GEO-AGRARIO PRO", layout="wide")
 
-# --- FUNCIONES LÓGICAS ---
+def aplicar_estilo():
+    st.markdown("""
+        <style>
+        [data-testid="stSidebar"] { background-color: #012a4a; color: white; }
+        .stDownloadButton button { 
+            background-color: #ffc107; color: black; border-radius: 10px; width: 100%;
+        }
+        .main { background-color: #f8f9fa; }
+        </style>
+    """, unsafe_allow_html=True)
+
+# --- 2. FUNCIONES DE CÁLCULO TOPOGRÁFICO ---
+def formatear_gms(deg):
+    d = int(deg)
+    m = int((deg - d) * 60)
+    s = round((((deg - d) * 60) - m) * 60, 2)
+    return f"{d}°{m}'{s}\""
+
 def calcular_rumbo(x1, y1, x2, y2):
     dx, dy = x2 - x1, y2 - y1
     distancia = math.sqrt(dx**2 + dy**2)
@@ -65,112 +42,111 @@ def calcular_rumbo(x1, y1, x2, y2):
     else: r = f"N {formatear_gms(360-azimut)} W"
     return r, distancia
 
-def formatear_gms(deg):
-    d = int(deg)
-    m = int((deg - d) * 60)
-    s = round((((deg - d) * 60) - m) * 60, 2)
-    return f"{d}°{m}'{s}\""
-
-def generar_cuadro(df, zona):
+def generar_cuadro_df(df):
     filas = []
     for i in range(len(df)):
         p1, p2 = df.iloc[i], df.iloc[(i + 1) % len(df)]
         rumbo, dist = calcular_rumbo(p1['Este_X'], p1['Norte_Y'], p2['Este_X'], p2['Norte_Y'])
-        filas.append({'Est': i+1, 'PV': (i+2) if (i+1) < len(df) else 1, 'Rumbo': rumbo, 'Distancia': f"{dist:.3f} m", 'Vértice': i+1, 'X': p1['Este_X'], 'Y': p1['Norte_Y']})
+        filas.append({
+            'Est': i+1, 'PV': (i+2) if (i+1) < len(df) else 1,
+            'Rumbo': rumbo, 'Distancia': f"{dist:.3f} m",
+            'Vértice': i+1, 'Coordenada X': f"{p1['Este_X']:.3f}", 'Coordenada Y': f"{p1['Norte_Y']:.3f}"
+        })
     return pd.DataFrame(filas)
 
-# --- INTERFAZ STREAMLIT ---
-st.title("🗺️ Ubicador de Predios y Análisis Agrario (RAN)")
-st.sidebar.header("Configuración Técnica")
-zona = st.sidebar.number_input("Zona UTM (México: 11-16)", value=14)
-archivo = st.sidebar.file_uploader("Cargar Excel/CSV (Vértice, Este_X, Norte_Y)", type=['xlsx', 'csv'])
+# --- 3. GENERACIÓN DE REPORTES (PDF Y KMZ) ---
+def crear_pdf(df_cuadro):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    elements.append(Paragraph("PLANO INFORMATIVO DE UBICACIÓN", styles['Title']))
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph("<b>NOTA:</b> Este documento es informativo y no constituye un título de propiedad.", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    data = [df_cuadro.columns.to_list()] + df_cuadro.values.tolist()
+    t = Table(data)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#012a4a")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('FONTSIZE', (0,0), (-1,-1), 8),
+    ]))
+    elements.append(t)
+    doc.build(elements)
+    return buffer.getvalue()
+
+# --- 4. INTERFAZ PRINCIPAL ---
+aplicar_estilo()
+
+# Encabezado con espacio para Logo
+col_l, col_t = st.columns([1, 4])
+with col_l:
+    # st.image("tu_logo.png", width=120) # Descomenta cuando subas tu logo a GitHub
+    st.info("LOGO AQUÍ")
+with col_t:
+    st.title("SISTEMA DE GESTIÓN GEO-AGRARIA")
+    st.caption("Ubicación de predios, Cuadros de Construcción y Análisis RAN")
+
+st.sidebar.header("⚙️ Configuración")
+zona_utm = st.sidebar.number_input("Zona UTM (México 11-16)", min_value=11, max_value=16, value=14)
+archivo = st.sidebar.file_uploader("Cargar archivo (CSV o Excel)", type=['csv', 'xlsx'])
 
 if archivo:
-    df_origen = pd.read_excel(archivo) if archivo.name.endswith('xlsx') else pd.read_csv(archivo)
-    cuadro_df = generar_cuadro(df_origen, zona)
-    
-    # Conversión a Geográficas para Mapa y KML
-    tf = Transformer.from_crs(f"EPSG:326{zona}", "EPSG:4326")
-    coords_mapa = [tf.transform(row['Este_X'], row['Norte_Y']) for _, row in df_origen.iterrows()]
-    coords_kml = [(c[1], c[0]) for c in coords_mapa] # Long, Lat para KML
-
-    col1, col2 = st.columns([1.5, 1])
-    
-    # --- BLOQUE DE MAPA CORREGIDO ---
-with col1:
-    st.subheader("📍 Ubicación en Google Maps & Capa RAN")
-    
-    # 1. Definir un ID único para el mapa basado en el archivo cargado
-    # Esto evita el error "removeChild" al forzar un renderizado limpio
-    map_key = f"mapa_{archivo.name}" if archivo else "mapa_base"
-    
-    # 2. Configurar el mapa
-    centro = [23.6345, -102.5528] # Centro de México por defecto
-    if archivo and coords_mapa:
-        centro = [sum(c[0] for c in coords_mapa)/len(coords_mapa), 
-                  sum(c[1] for c in coords_mapa)/len(coords_mapa)]
-    
-    m = folium.Map(location=centro, zoom_start=15)
-    
-    # 3. Añadir capas
-    folium.TileLayer('https://google.com{x}&y={y}&z={z}', 
-                     attr='Google', name='Google Satélite').add_to(m)
-    
-    folium.WmsTileLayer(
-        url="http://ran.gob.mx", 
-        layers="nucleos_agrarios", 
-        fmt="image/png", 
-        transparent=True, 
-        name="Ejidos (RAN)"
-    ).add_to(m)
-
-    if archivo and coords_mapa:
-        folium.Polygon(locations=coords_mapa, color="yellow", weight=3, 
-                       fill=True, popup="Predio Analizado").add_to(m)
-    
-    folium.LayerControl().add_to(m)
-
-    # 4. Renderizado seguro
-    # 'returned_objects=[]' evita que Streamlit intente enviar datos de vuelta
-    # al navegador constantemente, lo que causa el error de sincronización.
-    st_folium(m, width=700, height=500, key=map_key, returned_objects=[])
-
+    try:
+        df = pd.read_excel(archivo) if archivo.name.endswith('xlsx') else pd.read_csv(archivo)
+        cuadro_df = generar_cuadro_df(df)
         
-        # Capas
-        folium.TileLayer('https://google.com{x}&y={y}&z={z}', attr='Google', name='Google Satellite').add_to(m)
-        folium.WmsTileLayer(url="http://ran.gob.mx", layers="nucleos_agrarios", fmt="image/png", transparent=True, name="Ejidos (RAN)").add_to(m)
-        folium.Polygon(locations=coords_mapa, color="yellow", weight=3, fill=True, popup="Predio Analizado").add_to(m)
-        folium.LayerControl().add_to(m)
-# Crea un ID único basado en el nombre del archivo subido
-mapa_id = f"mapa_{archivo.name}" if archivo else "mapa_vacio"
-
-# Renderiza el mapa usando ese ID único
-st_folium(
-    m, 
-    width=800, 
-    height=500, 
-    key=mapa_id,  # <--- ESTA ES LA LÍNEA CRÍTICA
-    returned_objects=[] # Esto acelera el rendimiento y evita errores de comunicación
-)
-
-    with col2:
-        st.subheader("📋 Cuadro de Construcción")
-        st.dataframe(cuadro_df[['Est', 'PV', 'Rumbo', 'Distancia']], height=300)
+        # Conversión de coordenadas
+        tf = Transformer.from_crs(f"EPSG:326{zona_utm}", "EPSG:4326")
+        coords_mapa = [tf.transform(row['Este_X'], row['Norte_Y']) for _, row in df.iterrows()]
         
-        # Botones de Descarga
-        kml = simplekml.Kml()
-        pol = kml.newpolygon(name="Predio", outerboundaryis=coords_kml)
-        pol.style.linestyle.color, pol.style.linestyle.width = simplekml.Color.red, 3
+        col1, col2 = st.columns([1.5, 1])
         
-        st.download_button("📥 Descargar KMZ (Google Earth)", data=kml.kml(), file_name="predio.kmz")
-        st.warning("⚠️ Nota: El estatus ejidal debe confirmarse visualmente con la capa azul/roja del mapa.")
+        with col1:
+            st.subheader("📍 Visualización Geo-Agraria")
+            # SOLUCIÓN ERROR REMOVECHILD: ID dinámico único
+            map_key = f"mapa_{archivo.name}_{len(df)}"
+            
+            centro = [sum(c[0] for c in coords_mapa)/len(coords_mapa), sum(c[1] for c in coords_mapa)/len(coords_mapa)]
+            m = folium.Map(location=centro, zoom_start=16)
+            
+            # Capas
+            folium.TileLayer('https://google.com{x}&y={y}&z={z}', attr='Google', name='Google Híbrido').add_to(m)
+            folium.WmsTileLayer(
+                url="http://ran.gob.mx",
+                layers="nucleos_agrarios",
+                fmt="image/png",
+                transparent=True,
+                name="Ejidos y Comunidades (RAN)"
+            ).add_to(m)
+            
+            folium.Polygon(locations=coords_mapa, color="yellow", fill=True, weight=4).add_to(m)
+            folium.LayerControl().add_to(m)
+            
+            # Renderizado con returned_objects=[] para evitar errores de sincronización
+            st_folium(m, width=800, height=500, key=map_key, returned_objects=[])
 
-st.info("Desarrollado para cumplimiento de Normas Técnicas INEGI/RAN.")
+        with col2:
+            st.subheader("📋 Datos Técnicos")
+            st.dataframe(cuadro_df[['Est', 'PV', 'Rumbo', 'Distancia']], use_container_width=True)
+            
+            # Generar archivos para descarga
+            pdf_bytes = crear_pdf(cuadro_df)
+            
+            kml = simplekml.Kml()
+            kml_coords = [(c[1], c[0]) for c in coords_mapa] # Long, Lat para KML
+            pol = kml.newpolygon(name="Predio", outerboundaryis=kml_coords)
+            pol.style.linestyle.color, pol.style.linestyle.width = simplekml.Color.yellow, 4
+            
+            st.download_button("📄 Descargar Plano PDF", data=pdf_bytes, file_name=f"Plano_{archivo.name}.pdf")
+            st.download_button("🌍 Descargar KMZ (Google Earth)", data=kml.kml(), file_name=f"Predio_{archivo.name}.kmz")
+            
+            st.warning("⚠️ Verifique si el polígono amarillo coincide con las zonas coloreadas del RAN.")
 
-try:
-    if archivo:
-        # Tu lógica de procesamiento de coordenadas aquí...
-        # ...
-        st_folium(m, width=800, height=500, key=f"map_{archivo.name}")
-except Exception as e:
-    st.error(f"Error al procesar el mapa: {e}")
+    except Exception as e:
+        st.error(f"Error al procesar el archivo: {e}. Asegúrese de usar las columnas: Vértice, Este_X, Norte_Y")
+else:
+    st.write("👋 Bienvenido. Por favor, cargue un archivo en la barra lateral para comenzar.")
