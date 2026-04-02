@@ -109,10 +109,10 @@ if archivo:
 @st.fragment
 def mostrar_mapa(mapa_objeto, nombre_archivo):
     st_folium(mapa_objeto, width=800, height=500, key=f"map_{nombre_archivo}")
-
-# Luego en tu código principal:
 if archivo:
     mostrar_mapa(m, archivo.name)
+else:
+    st_folium(m, width=800, height=500, key="mapa_vacio")
 
     with col2:
         st.subheader("📋 Cuadro de Construcción")
