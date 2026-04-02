@@ -1,8 +1,7 @@
-streamlit>=1.35.0
+streamlit
 pandas
-geopandas
-folium==0.17.0
-streamlit-folium==0.21.0
+folium
+streamlit-folium
 pyproj
 simplekml
 reportlab
