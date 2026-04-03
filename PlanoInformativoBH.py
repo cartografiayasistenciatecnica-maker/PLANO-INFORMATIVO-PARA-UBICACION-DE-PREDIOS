@@ -16,7 +16,7 @@ st.set_page_config(page_title="Consultoría y Publicidad BH", page_icon="📐", 
 # --- Encabezado con logotipo y título ---
 col1, col2 = st.columns([1,4])
 with col1:
-    st.image("assets/logo_bh.png", width=150)  # coloca tu logotipo aquí
+    st.image("assets/logo_bh.png", width=150)  # coloca tu logotipo en /assets/logo_bh.png
 with col2:
     st.markdown("<h1 style='color:#012a4a;'>Consultoría y Publicidad BH</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='color:#b8860b;'>Importación y Exportación de Planos</h3>", unsafe_allow_html=True)
@@ -84,7 +84,24 @@ def exportar_kmz(df_cuadro):
 
     kmz_buffer = io.BytesIO()
     with zipfile.ZipFile(kmz_buffer, 'w') as zf:
-        zf.writestr("Predio.kml", "<kml><Placemark><Polygon>...</Polygon></Placemark></kml>")  # ejemplo KML
+        # Ejemplo KML simple
+        zf.writestr("Predio.kml", """<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<Placemark>
+<name>Predio</name>
+<Polygon>
+<outerBoundaryIs>
+<LinearRing>
+<coordinates>
+-89.700,20.900,0 -89.701,20.901,0 -89.702,20.902,0 -89.700,20.900,0
+</coordinates>
+</LinearRing>
+</outerBoundaryIs>
+</Polygon>
+</Placemark>
+</Document>
+</kml>""")
         zf.writestr("Cuadro_Tecnico.xlsx", excel_bytes)
     kmz_buffer.seek(0)
     return kmz_buffer.getvalue()
