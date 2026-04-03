@@ -32,8 +32,7 @@ with col1:
     try:
         st.image("assets/logo_bh.png", width=150)
     except:
-        st.write("### [ LOGO BH ]")
-
+        st.markdown("### 📐 BH") # Texto alternativo si el logo no subió a GitHub
 with col2:
     st.markdown("<h1 style='color:#012a4a; margin-bottom:0;'>Consultoría y Publicidad BH</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='color:#b8860b; margin-top:0;'>Dictaminación de Tenencia de la Tierra y Cartografía</h3>", unsafe_allow_html=True)
