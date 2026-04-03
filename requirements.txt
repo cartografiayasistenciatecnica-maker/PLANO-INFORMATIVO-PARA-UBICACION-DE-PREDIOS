@@ -10,3 +10,7 @@ streamlit-folium
 xlsxwriter
 pyogrio
 fiona
+streamlit, geopandas, fiona, '], df['Y'])]
+else:
+crs_input = "EPSG:4326"ezdxf, pandas, shapely, pyproj, reportlab, folium,
+geometry = [Point(xy) for xy in zip(df['Longitud'], df['Latitud'])]
