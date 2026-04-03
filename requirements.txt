@@ -6,3 +6,8 @@ pyproj
 simplekml
 reportlab
 openpyxl
+geopandas
+shapely
+fiona
+ezdxf
+xlsxwriter
