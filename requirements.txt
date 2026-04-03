@@ -8,3 +8,5 @@ reportlab
 folium
 streamlit-folium
 xlsxwriter
+pyogrio
+fiona
