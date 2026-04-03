@@ -1,12 +1,10 @@
 streamlit
 geopandas
-shapely
-fiona
-pyproj
 ezdxf
-reportlab
-xlsxwriter
 pandas
-pip
-streamlit-folium
+shapely
+pyproj
+reportlab
 folium
+streamlit-folium
+xlsxwriter
