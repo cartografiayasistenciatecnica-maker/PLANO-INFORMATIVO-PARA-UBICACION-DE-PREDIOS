@@ -5,7 +5,7 @@ import pandas as pd
 import io
 import os
 if len(gdf) > 2:
-            poly_geom = Polygon([(p.x, p.y
+            poly_geom = Polygon([(p.x, p.y) for p in gdf.geometry])
 import tempfile
 import zipfile
 import folium
