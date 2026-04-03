@@ -3,7 +3,8 @@ import geopandas as gpd
 import ezdxf
 import pandas as pd
 import io
-import osif len(gdf) > 2:
+import os
+if len(gdf) > 2:
             poly_geom = Polygon([(p.x, p.y
 import tempfile
 import zipfile
