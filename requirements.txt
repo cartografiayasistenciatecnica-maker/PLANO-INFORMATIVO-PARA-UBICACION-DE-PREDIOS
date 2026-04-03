@@ -7,3 +7,7 @@ ezdxf
 reportlab
 xlsxwriter
 pandas
+pip
+install
+streamlit-folium
+folium
