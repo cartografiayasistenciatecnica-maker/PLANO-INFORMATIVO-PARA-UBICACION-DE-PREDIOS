@@ -1,13 +1,9 @@
 streamlit
-pandas
-folium
-streamlit-folium
-pyproj
-simplekml
-reportlab
-openpyxl
 geopandas
 shapely
 fiona
+pyproj
 ezdxf
+reportlab
 xlsxwriter
+pandas
