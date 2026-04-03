@@ -16,7 +16,7 @@ st.set_page_config(page_title="Consultoría y Publicidad BH", page_icon="📐", 
 # --- Encabezado con logotipo y título ---
 col1, col2 = st.columns([1,4])
 with col1:
-    st.image("logo_bh.png", width=150)  # coloca tu logotipo aquí
+    st.image("assets/logo_bh.png", width=150)  # coloca tu logotipo aquí
 with col2:
     st.markdown("<h1 style='color:#012a4a;'>Consultoría y Publicidad BH</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='color:#b8860b;'>Importación y Exportación de Planos</h3>", unsafe_allow_html=True)
@@ -84,7 +84,7 @@ def exportar_kmz(df_cuadro):
 
     kmz_buffer = io.BytesIO()
     with zipfile.ZipFile(kmz_buffer, 'w') as zf:
-        zf.writestr("Predio.kml", "<kml>...</kml>")  # aquí se genera el KML real
+        zf.writestr("Predio.kml", "<kml><Placemark><Polygon>...</Polygon></Placemark></kml>")  # ejemplo KML
         zf.writestr("Cuadro_Tecnico.xlsx", excel_bytes)
     kmz_buffer.seek(0)
     return kmz_buffer.getvalue()
@@ -117,7 +117,6 @@ elif opcion == "Importar DWG/DXF":
 
 elif opcion == "Exportar PDF":
     st.info("📄 Generando PDF corporativo...")
-    # Ejemplo de cuadro técnico
     df_cuadro = pd.DataFrame({
         "Vértice":[1,2,3],
         "Coordenada X":[100,200,300],
