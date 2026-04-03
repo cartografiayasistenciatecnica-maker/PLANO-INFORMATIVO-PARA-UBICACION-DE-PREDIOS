@@ -1,4 +1,2 @@
-libgdal-dev
-gdal-bin
-libgeos-dev
-libproj-dev
+:326{zona_utm}"
+geometry = [Point(xy) for xy in zip(df['Xlibgdal-dev, gdal-bin, libgeos-dev, libproj-dev
